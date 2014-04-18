@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 )
@@ -23,13 +23,13 @@ const (
 	Llongfile                     // full file name and line number: /a/b/c/d.go:23
 	Lshortfile                    // final file name element and line number: d.go:23. overrides Llongfile
 	Lmodule                       // module name
-	Llevel                        // level: 0(Debug), 1(Info), 2(Warn), 3(Error), 4(Panic), 5(Fatal)
+	Llevel                        // level: 1(Debug), 2(Info), 4(Warn), 8(Error), 16(Panic), 32(Fatal)
 	LstdFlags     = Ldate | Ltime // initial values for the standard logger
 	Ldefault      = Lmodule | Llevel | Lshortfile | LstdFlags
 ) // [prefix][time][level][module][shortfile|longfile]
 
 const (
-	Ldebug   = iota
+	Ldebug = 1 << iota
 	Linfo
 	Lwarn
 	Lerror
@@ -37,13 +37,13 @@ const (
 	Lfatal
 )
 
-var levels = []string{
-	"[DEBUG]",
-	"[INFO]",
-	"[WARN]",
-	"[ERROR]",
-	"[PANIC]",
-	"[FATAL]",
+var levels = map[int]string{
+	Ldebug: "[DEBUG]",
+	Linfo:  "[INFO]",
+	Lwarn:  "[WARN]",
+	Lerror: "[ERROR]",
+	Lpanic: "[PANIC]",
+	Lfatal: "[FATAL]",
 }
 
 // A Logger represents an active logging object that generates lines of
@@ -51,12 +51,12 @@ var levels = []string{
 // the Writer's Write method.  A Logger can be used simultaneously from
 // multiple goroutines; it guarantees to serialize access to the Writer.
 type Logger struct {
-	mu     sync.Mutex   // ensures atomic writes; protects the following fields
-	prefix string       // prefix to write at beginning of each line
-	flag   int          // properties
-	Level  int
-	out    io.Writer    // destination for output
-	buf    bytes.Buffer // for accumulating text to write
+	mu         sync.Mutex // ensures atomic writes; protects the following fields
+	prefix     string     // prefix to write at beginning of each line
+	flag       int        // properties
+	Level      int
+	out        io.Writer    // destination for output
+	buf        bytes.Buffer // for accumulating text to write
 	levelStats [6]int64
 }
 
@@ -100,7 +100,7 @@ func moduleOf(file string) string {
 	if pos != -1 {
 		pos1 := strings.LastIndex(file[:pos], "/src/")
 		if pos1 != -1 {
-			return file[pos1+5:pos]
+			return file[pos1+5 : pos]
 		}
 	}
 	return "UNKNOWN"
@@ -222,14 +222,14 @@ func (l *Logger) Println(v ...interface{}) { l.Output("", Linfo, 2, fmt.Sprintln
 // -----------------------------------------
 
 func (l *Logger) Debugf(format string, v ...interface{}) {
-	if Ldebug < l.Level {
+	if Ldebug&l.Level == 0 {
 		return
 	}
 	l.Output("", Ldebug, 2, fmt.Sprintf(format, v...))
 }
 
 func (l *Logger) Debug(v ...interface{}) {
-	if Ldebug < l.Level {
+	if Ldebug&l.Level == 0 {
 		return
 	}
 	l.Output("", Ldebug, 2, fmt.Sprintln(v...))
@@ -238,14 +238,14 @@ func (l *Logger) Debug(v ...interface{}) {
 // -----------------------------------------
 
 func (l *Logger) Infof(format string, v ...interface{}) {
-	if Linfo < l.Level {
+	if Linfo&l.Level == 0 {
 		return
 	}
 	l.Output("", Linfo, 2, fmt.Sprintf(format, v...))
 }
 
 func (l *Logger) Info(v ...interface{}) {
-	if Linfo < l.Level {
+	if Linfo&l.Level == 0 {
 		return
 	}
 	l.Output("", Linfo, 2, fmt.Sprintln(v...))
@@ -314,7 +314,7 @@ func (l *Logger) Panicln(v ...interface{}) {
 func (l *Logger) Stack(v ...interface{}) {
 	s := fmt.Sprint(v...)
 	s += "\n"
-	buf := make([]byte, 1024 * 1024)
+	buf := make([]byte, 1024*1024)
 	n := runtime.Stack(buf, true)
 	s += string(buf[:n])
 	s += "\n"
@@ -423,14 +423,14 @@ func Println(v ...interface{}) {
 // -----------------------------------------
 
 func Debugf(format string, v ...interface{}) {
-	if Ldebug < Std.Level {
+	if Ldebug&Std.Level == 0 {
 		return
 	}
 	Std.Output("", Ldebug, 2, fmt.Sprintf(format, v...))
 }
 
 func Debug(v ...interface{}) {
-	if Ldebug < Std.Level {
+	if Ldebug&Std.Level == 0 {
 		return
 	}
 	Std.Output("", Ldebug, 2, fmt.Sprintln(v...))
@@ -439,14 +439,14 @@ func Debug(v ...interface{}) {
 // -----------------------------------------
 
 func Infof(format string, v ...interface{}) {
-	if Linfo < Std.Level {
+	if Linfo&Std.Level == 0 {
 		return
 	}
 	Std.Output("", Linfo, 2, fmt.Sprintf(format, v...))
 }
 
 func Info(v ...interface{}) {
-	if Linfo < Std.Level {
+	if Linfo&Std.Level == 0 {
 		return
 	}
 	Std.Output("", Linfo, 2, fmt.Sprintln(v...))
@@ -516,7 +516,7 @@ func Panicln(v ...interface{}) {
 func Stack(v ...interface{}) {
 	s := fmt.Sprint(v...)
 	s += "\n"
-	buf := make([]byte, 1024 * 1024)
+	buf := make([]byte, 1024*1024)
 	n := runtime.Stack(buf, true)
 	s += string(buf[:n])
 	s += "\n"
