@@ -173,9 +173,9 @@ func (l *Logger) formatHeader(buf *bytes.Buffer, t time.Time, file string, line 
 // provided for generality, although at the moment on all pre-defined
 // paths it will be 2.
 func (l *Logger) Output(reqId string, lvl int, calldepth int, s string) error {
-	if lvl < l.Level {
+	/*if lvl < l.Level {
 		return nil
-	}
+	}*/
 	now := time.Now() // get this early.
 	var file string
 	var line int
