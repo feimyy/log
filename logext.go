@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"runtime"
 	"strings"
@@ -192,7 +193,8 @@ func (l *Logger) Output(reqId string, lvl int, calldepth int, s string) error {
 		}
 		l.mu.Lock()
 	}
-	l.levelStats[lvl]++
+	index := int(math.Log2(float64(lvl)))
+	l.levelStats[index]++
 	l.buf.Reset()
 	l.formatHeader(&l.buf, now, file, line, lvl, reqId)
 	l.buf.WriteString(s)
